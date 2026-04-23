@@ -11,7 +11,11 @@ document.addEventListener('DOMContentLoaded', () => {
         codeBlock.style.outline = 'none'; // Remove focus border
         codeBlock.style.borderLeft = '2px solid #3498db'; // Visual cue that it's editable
         codeBlock.style.paddingLeft = '10px';
-        
+        codeBlock.addEventListener('keydown', (e) => {
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        e.stopPropagation(); // Stop other scripts from stealing the arrow key press
+    }
+});
 
         
         // Create the Run button
