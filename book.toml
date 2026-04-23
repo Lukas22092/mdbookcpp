@@ -1,0 +1,8 @@
+[book]
+title = "n"
+authors = ["Lukas"]
+language = "en"
+
+[output.html]
+# This tells mdBook to look for the file in the theme/ directory
+additional-js = ["godbolt.js"]
