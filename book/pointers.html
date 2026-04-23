@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Multithreading in C++ - C++</title>
+        <title>Pointers - C++</title>
 
 
         <!-- Custom HTML head -->
@@ -174,177 +174,17 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="multithreading-in-c"><a class="header" href="#multithreading-in-c">Multithreading in C++</a></h1>
-<ul>
-<li>most relevant headers: <code>&lt;condition_variable&gt;</code>, <code>&lt;atomic&gt;</code>, <code>&lt;future&gt;</code>, <code>&lt;mutex&gt;</code>, <code>&lt;thread&gt;</code></li>
-</ul>
-<h1 id="constructing-threads"><a class="header" href="#constructing-threads">Constructing Threads</a></h1>
-<p>Parameters:</p>
-<blockquote>
-<p><code>std::thread(function, parameters)</code>.
-Parameters need to be passed by value. The <a href="https://en.cppreference.com/cpp/thread/thread/thread#:~:text=The%20arguments%20to%20the%20thread%20function%20are%20moved%20or%20copied%20by%20value%2E%20If%20a%20reference%20argument%20needs%20to%20be%20passed%20to%20the%20thread%20function%2C%20it%20has%20to%20be%20wrapped%20%28e%2Eg%2E%2C%20with%20std%3A%3Aref%20or%20std%3A%3Acref%29%2E">std::thread constructor only copys arguments.</a> if you want to pass by reference, you must use a wrapper (eg <a href="https://en.cppreference.com/cpp/utility/functional/ref">std::ref</a>)</p>
-</blockquote>
-<h4 id="example-1-passing-arguments-by-value"><a class="header" href="#example-1-passing-arguments-by-value">Example 1: Passing arguments by value</a></h4>
-<pre><code class="language-cpp">void foo(){std::cout &lt;&lt; "Thread 1 is running!\n";};
-void bar(int a){std::cout &lt;&lt; "Argument in Thread 2 :" &lt;&lt; a; }
-int main()
-{
-    std::thread t1(foo);
-    std::thread t2(bar, 3);
-
-    t1.join(); t2.join();
-}
-</code></pre>
-<h4 id="example-2-passing-arguments-by-reference"><a class="header" href="#example-2-passing-arguments-by-reference">Example 2: Passing arguments by reference</a></h4>
-<pre><code class="language-cpp">void foo(int&amp; a) { std::cout &lt;&lt; "Argument in Thread 2: " &lt;&lt; a; }
-void bar(const int&amp; a) { std::cout &lt;&lt; "Argument in Thread 1: " &lt;&lt; a; }
-int main()
-{   
-    int value = 42;
-    std::thread t1(foo, std::ref(value)); 
-    std::thread t2(bar, 55); 
-
-    t1.join(); t2.join();
-}
-</code></pre>
-<p>Why t2 works:</p>
-<blockquote>
-<p>rvalues cannot bind to non-const lvalue references, but C++ allows them to bind to constant lvalue references.</p>
-</blockquote>
-<h3 id="example-3-assigning-to-a-lambda"><a class="header" href="#example-3-assigning-to-a-lambda">Example 3: Assigning to a lambda</a></h3>
-<pre><code class="language-cpp">int main()
-{
-    int a = 42;
-    std::thread t1([&amp;](){std::cout &lt;&lt; a;});
-    t1.join();
-}
-</code></pre>
-<h1 id="mutexes--lock-guards"><a class="header" href="#mutexes--lock-guards">Mutexes &amp; Lock Guards</a></h1>
-<blockquote>
-<p>mutexes are used to protect shared data. They offer member functions lock and unlock but you typically do not use those - prefer the RAII wrapper <code>std::lock_guard</code>. <a href="https://en.cppreference.com/cpp/thread/mutex#:~:text=std%3A%3Amutex%20is%20neither%20copyable%20nor%20movable%2E">Mutexes can not be copied or moved.</a>Locking a <code>std::mutex</code>more than once will result in UB. (exception: <code>std::recursive_mutex</code>)</p>
-</blockquote>
-<h2 id="stdlock_guard"><a class="header" href="#stdlock_guard">std::lock_guard</a></h2>
-<p>The idea of a lock guard is quite simple</p>
-<h3 id="example-4-a-scope-guard"><a class="header" href="#example-4-a-scope-guard">Example 4: a (scope) guard</a></h3>
-<pre><code class="language-cpp">class lock_guard
-{   private:
-    std::mutex&amp; _m;
-    public:
-    lock_guard(std::mutex&amp; m) : _m(m) {m.lock();}
-    ~lock_guard{m.unlock();}
-}
-</code></pre>
-<p>using a <code>std::lock_guard</code>is quite simple. On construciton, just give him the reference to a mutex.</p>
-<h3 id="example-5-using-a-lock-guard"><a class="header" href="#example-5-using-a-lock-guard">Example 5: using a lock guard</a></h3>
-<pre><code class="language-cpp">void increment(std::mutex&amp; m, int&amp; i) 
-{
-    std::lock_guard&lt;std::mutex&gt; l(m); 
-    i++;
-}
-int main()
-{
-    std::mutex m;
-    int count = 0;
-
-    std::thread t1([&amp;](){ increment(m, count); });
-    
-    t1.join();
-
-    std::cout &lt;&lt; "Final value: " &lt;&lt; count &lt;&lt; '\n';
-}
-</code></pre>
-<blockquote>
-<p>A lock should only be held for the minimum possible time needed to perform the given task.
-Holding it for longer will force other threads that also might want to
-hold the lock to wait.</p>
-</blockquote>
-<h2 id="stdunique_lock"><a class="header" href="#stdunique_lock">std::unique_lock</a></h2>
-<p>C++ offers <a href="https://en.cppreference.com/cpp/thread/unique_lock"><code>std::unique_lock</code></a>.
-A lock can be constructed in an unlocked state (using <code>std::defer_lock</code>) or in a state where we <strong>assume</strong>, the thread is already locked (using <code>std::adopt_lock</code>)</p>
-<h3 id="example-6-using-stddefer_lock"><a class="header" href="#example-6-using-stddefer_lock">Example 6: using <code>std::defer_lock</code></a></h3>
-<pre><code class="language-cpp">void increment(std::mutex&amp; m, int&amp; i) 
-{
-    std::unique_lock&lt;std::mutex&gt; l(m, std::defer_lock); 
-    //do work that does not need the lock yet...
-    l.lock(); 
-    i++;
-    l.unlock(); 
-}
-int main()
-{
-    std::mutex m;
-    int count = 0;
-
-    std::thread t1([&amp;](){ increment(m, count); });
-    
-    t1.join();
-
-    std::cout &lt;&lt; "Final value: " &lt;&lt; count &lt;&lt; '\n';
-}
-</code></pre>
-<h3 id="example-7-using-stdadopt_lock"><a class="header" href="#example-7-using-stdadopt_lock">Example 7: using <code>std::adopt_lock</code></a></h3>
-<pre><code class="language-cpp">void increment(std::mutex&amp; m, int&amp; i) 
-{
-    m.lock();
-    std::unique_lock&lt;std::mutex&gt; l(m, std::adopt_lock); 
-    i++;
-}//destructor releases the lock.
-int main()
-{
-    std::mutex m;
-    int count = 0;
-
-    std::thread t1([&amp;](){ increment(m, count); });
-    
-    t1.join();
-
-    std::cout &lt;&lt; "Final value: " &lt;&lt; count &lt;&lt; '\n';
-}
-</code></pre>
-<p>One unique thing about <code>std::unique_lock</code> is, that is <strong>can be moved!</strong> <code>std::lock_guard</code> is not movable.</p>
-<p>This gives us the ability to offload the task to unlock to someone else. This is useful for ensuring atomic operations.
-Why is this usefull? what if we have a task we want to do that takes multiple funcitons ?</p>
-<h3 id="example-8-moving-a-stdunique_lock"><a class="header" href="#example-8-moving-a-stdunique_lock">Example 8: moving a <code>std::unique_lock</code></a></h3>
-<pre><code class="language-cpp">td::mutex m;
-std::unique_lock&lt;std::mutex&gt; prepare_lock() {
-    std::unique_lock&lt;std::mutex&gt; lk(m);
-    std::cout &lt;&lt; "1. Locked in prepare_lock\n";
-    return lk; 
-}
-
-std::unique_lock&lt;std::mutex&gt; open_file(std::unique_lock&lt;std::mutex&gt; lk) {
-    std::cout &lt;&lt; "2. File opened (still locked)\n";
-    return lk;
-}
-
-void read_entries(std::unique_lock&lt;std::mutex&gt; lk) {
-    std::cout &lt;&lt; "3. Entries read (still locked)\n";
-  
-} // lk goes out of scope and UNLOCKS m here!
-
-int main() {
-    // Start the chain
-    auto lk = prepare_lock(); 
-    
-    // Pass ownership to open_file, and catch the returned ownership
-    lk = open_file(std::move(lk)); 
-    
-    // Pass final ownership to read_entries
-    read_entries(std::move(lk)); 
-
-    std::cout &lt;&lt; "4. Mutex is now officially free.\n";
-}
-</code></pre>
-<p>this enfoeces mutal exclusion.</p>
+                        <h1 id="unique-ptr"><a class="header" href="#unique-ptr">unique ptr</a></h1>
+<p>hiiiii</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-
-                            <a rel="next prefetch" href="pointers.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            <a rel="prev" href="multithreading.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
+
 
                         <div style="clear: both"></div>
                     </nav>
@@ -352,10 +192,10 @@ int main() {
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-
-                    <a rel="next prefetch" href="pointers.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    <a rel="prev" href="multithreading.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
+
             </nav>
 
         </div>

@@ -1,4 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
+
+    //all the basic headers: 
+    const requiredHeaders = `#include <bits/stdc++.h>\n\n`;
+
     // Find all C++ code blocks
     const codeBlocks = document.querySelectorAll('pre code.language-cpp');
 
@@ -7,22 +11,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // --- 1. Make the code block editable ---
         codeBlock.setAttribute('contenteditable', 'true');
-        codeBlock.setAttribute('spellcheck', 'false'); // <--- ADD THIS LINE
-        codeBlock.style.outline = 'none'; // Remove focus border
-        codeBlock.style.borderLeft = '2px solid #3498db'; // Visual cue that it's editable
+        codeBlock.setAttribute('spellcheck', 'false');
+        codeBlock.style.outline = 'none';
+        codeBlock.style.borderLeft = '2px solid #3498db';
         codeBlock.style.paddingLeft = '10px';
-        codeBlock.addEventListener('keydown', (e) => {
-    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-        e.stopPropagation(); // Stop other scripts from stealing the arrow key press
-    }
-});
-
         
+        codeBlock.addEventListener('keydown', (e) => {
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                e.stopPropagation();
+            }
+        });
+
         // Create the Run button
         const button = document.createElement('button');
         button.innerText = 'Run on Godbolt';
         button.classList.add('godbolt-run-button');
-        // Added some better styling for the button
         button.style = 'margin-top: 10px; cursor: pointer; padding: 8px 15px; background: #3498db; color: white; border: none; border-radius: 4px;';
 
         // Create a place to show the output
@@ -33,8 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
             button.innerText = 'Running...';
             button.disabled = true;
             
-            // --- 2. Grab the CURRENT text (includes your edits) ---
-            const currentCode = codeBlock.innerText;
+            const currentCode = requiredHeaders + codeBlock.innerText;
             
             const requestData = {
                 source: currentCode,
