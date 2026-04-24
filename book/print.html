@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-d43290af.js";
+            window.path_to_searchindex_js = "searchindex-8fe893aa.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-39c0769f.js"></script>
@@ -200,10 +200,10 @@ int main()
 <pre><code class="language-cpp">void foo(int&amp; a) { std::cout &lt;&lt; "Argument in Thread 2: " &lt;&lt; a; }
 void bar(const int&amp; a) { std::cout &lt;&lt; "Argument in Thread 1: " &lt;&lt; a; }
 int main()
-{   
+{
     int value = 42;
-    std::thread t1(foo, std::ref(value)); 
-    std::thread t2(bar, 55); 
+    std::thread t1(foo, std::ref(value));
+    std::thread t2(bar, 55);
 
     t1.join(); t2.join();
 }
@@ -237,9 +237,9 @@ int main()
 </code></pre>
 <p>using a <code>std::lock_guard</code>is quite simple. On construciton, just give him the reference to a mutex.</p>
 <h3 id="example-5-using-a-lock-guard"><a class="header" href="#example-5-using-a-lock-guard">Example 5: using a lock guard</a></h3>
-<pre><code class="language-cpp">void increment(std::mutex&amp; m, int&amp; i) 
+<pre><code class="language-cpp">void increment(std::mutex&amp; m, int&amp; i)
 {
-    std::lock_guard&lt;std::mutex&gt; l(m); 
+    std::lock_guard&lt;std::mutex&gt; l(m);
     i++;
 }
 int main()
@@ -248,7 +248,7 @@ int main()
     int count = 0;
 
     std::thread t1([&amp;](){ increment(m, count); });
-    
+
     t1.join();
 
     std::cout &lt;&lt; "Final value: " &lt;&lt; count &lt;&lt; '\n';
@@ -263,13 +263,13 @@ hold the lock to wait.</p>
 <p>C++ offers <a href="https://en.cppreference.com/cpp/thread/unique_lock"><code>std::unique_lock</code></a>.
 A lock can be constructed in an unlocked state (using <code>std::defer_lock</code>) or in a state where we <strong>assume</strong>, the thread is already locked (using <code>std::adopt_lock</code>)</p>
 <h3 id="example-6-using-stddefer_lock"><a class="header" href="#example-6-using-stddefer_lock">Example 6: using <code>std::defer_lock</code></a></h3>
-<pre><code class="language-cpp">void increment(std::mutex&amp; m, int&amp; i) 
+<pre><code class="language-cpp">void increment(std::mutex&amp; m, int&amp; i)
 {
-    std::unique_lock&lt;std::mutex&gt; l(m, std::defer_lock); 
+    std::unique_lock&lt;std::mutex&gt; l(m, std::defer_lock);
     //do work that does not need the lock yet...
-    l.lock(); 
+    l.lock();
     i++;
-    l.unlock(); 
+    l.unlock();
 }
 int main()
 {
@@ -277,17 +277,17 @@ int main()
     int count = 0;
 
     std::thread t1([&amp;](){ increment(m, count); });
-    
+
     t1.join();
 
     std::cout &lt;&lt; "Final value: " &lt;&lt; count &lt;&lt; '\n';
 }
 </code></pre>
 <h3 id="example-7-using-stdadopt_lock"><a class="header" href="#example-7-using-stdadopt_lock">Example 7: using <code>std::adopt_lock</code></a></h3>
-<pre><code class="language-cpp">void increment(std::mutex&amp; m, int&amp; i) 
+<pre><code class="language-cpp">void increment(std::mutex&amp; m, int&amp; i)
 {
     m.lock();
-    std::unique_lock&lt;std::mutex&gt; l(m, std::adopt_lock); 
+    std::unique_lock&lt;std::mutex&gt; l(m, std::adopt_lock);
     i++;
 }//destructor releases the lock.
 int main()
@@ -296,7 +296,7 @@ int main()
     int count = 0;
 
     std::thread t1([&amp;](){ increment(m, count); });
-    
+
     t1.join();
 
     std::cout &lt;&lt; "Final value: " &lt;&lt; count &lt;&lt; '\n';
@@ -310,7 +310,7 @@ Why is this usefull? what if we have a task we want to do that takes multiple fu
 std::unique_lock&lt;std::mutex&gt; prepare_lock() {
     std::unique_lock&lt;std::mutex&gt; lk(m);
     std::cout &lt;&lt; "1. Locked in prepare_lock\n";
-    return lk; 
+    return lk;
 }
 
 std::unique_lock&lt;std::mutex&gt; open_file(std::unique_lock&lt;std::mutex&gt; lk) {
@@ -320,23 +320,90 @@ std::unique_lock&lt;std::mutex&gt; open_file(std::unique_lock&lt;std::mutex&gt; 
 
 void read_entries(std::unique_lock&lt;std::mutex&gt; lk) {
     std::cout &lt;&lt; "3. Entries read (still locked)\n";
-  
+
 } // lk goes out of scope and UNLOCKS m here!
 
 int main() {
     // Start the chain
-    auto lk = prepare_lock(); 
-    
+    auto lk = prepare_lock();
+
     // Pass ownership to open_file, and catch the returned ownership
-    lk = open_file(std::move(lk)); 
-    
+    lk = open_file(std::move(lk));
+
     // Pass final ownership to read_entries
-    read_entries(std::move(lk)); 
+    read_entries(std::move(lk));
 
     std::cout &lt;&lt; "4. Mutex is now officially free.\n";
 }
 </code></pre>
 <p>this enfoeces mutal exclusion.</p>
+<h2 id="stdscoped_lock"><a class="header" href="#stdscoped_lock"><code>std::scoped_lock</code></a></h2>
+<blockquote>
+<p><code>std::scoped_lock</code> is the same as <code>std::lock_guard</code> but it can take multiple mutexes. Syntax: <code>std:: scoped_lock guard&lt;std::mutex, std::mutex&gt; ( mutex1 , mutex2 )</code>. The template parameters can be neglected from c++ 17 on. Its purpose is to not have to manually write <code>std::lock</code>. Useful for eg swap operations.</p>
+</blockquote>
+<h1 id="conditions"><a class="header" href="#conditions">Conditions</a></h1>
+<p>using <code>std::conditional_variable</code>, our code can move away from bussy waiting and get more efficient.</p>
+<ul>
+<li>The member function <code>notifiy_one()</code> looks at the list of threads currently waiting on this conditional variable. If there are any threads sleeping, it unlocks one of them.<code>notify_all()</code> does the same thing but notifies all currently waiting threads for that conditional variable.</li>
+<li>The member function <code>wait(std::unique_lock&lt;std::mutex&gt;&amp; lock, bool predicate)</code> releases the mutex lock so other threads can continue working. The corresponding thread is sent to sleep. the 2nd argument is usaully a lambda.<a href="https://en.wikipedia.org/wiki/Spurious_wakeup">For whatever reasons,a thread can wake up at random times.</a>. Threads are only allowed to pass the section if the predicate is true.</li>
+</ul>
+<h3 id="example-9-building-a-threadsafe-quere"><a class="header" href="#example-9-building-a-threadsafe-quere">Example 9: Building a threadsafe quere</a></h3>
+<pre><code class="language-cpp">class threadsafe_quere
+{
+    std::mutex _m;
+    std::condition_variable _cv;
+    std::queue&lt;int&gt; _quere;
+    public:
+    void push(int element)
+    {
+        std::unique_lock&lt;std::mutex&gt; lk(_m);
+        _quere.push(element);
+        _cv.notify_one();
+    }
+    void pop()
+    {
+        std::unique_lock&lt;std::mutex&gt; lk(_m);
+        _cv.wait(lk, [this](){return !_quere.empty();});
+        _quere.pop();
+    }
+    void print() //prints and cleans the _quere
+    {
+        std::unique_lock&lt;std::mutex&gt; lk(_m); 
+        while (!_quere.empty()) {
+        std::cout &lt;&lt; _quere.front() &lt;&lt; " ";
+        _quere.pop();
+    }
+    }
+} ;
+int main()
+{
+    threadsafe_quere tq;
+    std::thread put([&amp;](){
+        for(int i = 1; i &lt;= 10; i++)
+            tq.push(i);});
+
+
+    std::thread pop_single([&amp;](){
+        for(int i = 1; i &lt;= 3; i++)
+            tq.pop();});
+
+    pop_single.join();
+    put.join();
+
+    tq.print();
+
+}
+</code></pre>
+<p>one thing to note about this implementation is to keep copying in mind. For complex types,
+<code>_quere.push(element)</code> should be <code>_quere.push(std::move(element))</code>. Additionally, for custom types default to trying to avoid making copys as copy constructors may throw.</p>
+<h1 id="futures"><a class="header" href="#futures">Futures</a></h1>
+<blockquote>
+<p><code>std::future</code>and <code>std::shared_future</code> have the same conceptual meaning as unique and shared pointers. one refers to one object while the other one can have multiple instances refer to the same object.
+The idea of futures are to return values. <code>std::thread</code> offers you no straight forward way to return values and use them at a later state (eg values from a background calculation).</p>
+</blockquote>
+<h2 id="stdasync"><a class="header" href="#stdasync"><code>std::async</code></a></h2>
+<p>lets you do exactly that. you can launch a new thread and store the returing value in a future object.</p>
+<h3 id="example-10-using-stdasync"><a class="header" href="#example-10-using-stdasync">Example 10: using ```std::async````</a></h3>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="unique-ptr"><a class="header" href="#unique-ptr">unique ptr</a></h1>
 <p>hiiiii</p>
